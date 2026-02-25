@@ -102,7 +102,7 @@ export default async function SubscriptionDetailPage({
                 <p className="text-sm text-gray-500">
                   {(subscription.remaining_credits ?? 0).toLocaleString()} /{' '}
                   {subscription.total_credits!.toLocaleString()}{' '}
-                  {subscription.credit_unit}
+                  {subscription.credit_unit ?? 'credits'}
                 </p>
               </CardContent>
             </Card>

@@ -73,7 +73,7 @@ export function SubscriptionCard({ subscription }: SubscriptionCardProps) {
                 <span>
                   크레딧 {creditPercent}% 남음
                 </span>
-                <span>{subscription.credit_unit}</span>
+                <span>{subscription.credit_unit ?? 'credits'}</span>
               </div>
               <div className="mt-1 h-1.5 w-full rounded-full bg-gray-200">
                 <div

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { isRedirectError } from 'next/dist/client/components/redirect';
 import { SERVICE_NAMES, SUPPORTED_CURRENCIES } from '@subtrack/shared';
 import type { Subscription } from '@subtrack/shared';
 import { Input } from '@/components/ui/Input';
@@ -61,8 +62,9 @@ export function SubscriptionForm({
       if (result?.error) {
         setError(result.error);
       }
-    } catch {
-      // redirect가 throw하므로 정상 동작
+    } catch (err) {
+      if (isRedirectError(err)) throw err;
+      setError('오류가 발생했습니다. 다시 시도해주세요.');
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,7 @@
 import Link from 'next/link';
-import { type Currency } from '@subtrack/shared';
+import { type Currency, type Subscription } from '@subtrack/shared';
 import { getSubscriptions } from '@/lib/data/subscriptions';
-import { getCreditSummary } from '@/lib/data/credit-logs';
+import { getCreditSummary, type CreditSummaryItem } from '@/lib/data/credit-logs';
 import { SpendingSummaryCard } from '@/components/dashboard/SpendingSummaryCard';
 import { CreditRemainingChart } from '@/components/dashboard/CreditRemainingChart';
 import { RenewalTimeline } from '@/components/dashboard/RenewalTimeline';
@@ -10,10 +10,29 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Button } from '@/components/ui/Button';
 
 export default async function DashboardPage() {
-  const [subscriptions, creditSummary] = await Promise.all([
-    getSubscriptions(),
-    getCreditSummary(),
-  ]);
+  let subscriptions: Subscription[];
+  let creditSummary: CreditSummaryItem[];
+
+  try {
+    [subscriptions, creditSummary] = await Promise.all([
+      getSubscriptions(),
+      getCreditSummary(),
+    ]);
+  } catch {
+    return (
+      <div>
+        <h1 className="mb-6 text-xl font-bold">대시보드</h1>
+        <div className="rounded-md bg-red-50 p-6 text-center">
+          <p className="text-sm font-medium text-red-800">
+            데이터를 불러오는 데 실패했습니다.
+          </p>
+          <p className="mt-1 text-sm text-red-600">
+            Supabase 연결 상태를 확인하고 페이지를 새로고침해주세요.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const activeSubscriptions = subscriptions.filter((s) => s.is_active);
   const monthlyTotal = activeSubscriptions.reduce(

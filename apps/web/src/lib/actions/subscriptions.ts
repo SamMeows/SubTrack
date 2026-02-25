@@ -6,14 +6,14 @@ import { createServerSupabaseClient } from '@/lib/supabase/server';
 
 function validateFormData(formData: FormData) {
   const serviceName = formData.get('service_name') as string;
-  const monthlyCoast = parseFloat(formData.get('monthly_cost') as string);
+  const monthlyCost = parseFloat(formData.get('monthly_cost') as string);
   const billingDay = parseInt(formData.get('billing_day') as string, 10);
   const cardLast4 = formData.get('payment_card_last4') as string | null;
 
   const errors: string[] = [];
 
   if (!serviceName?.trim()) errors.push('서비스명은 필수입니다.');
-  if (isNaN(monthlyCoast) || monthlyCoast < 0)
+  if (isNaN(monthlyCost) || monthlyCost < 0)
     errors.push('월 결제금액이 올바르지 않습니다.');
   if (isNaN(billingDay) || billingDay < 1 || billingDay > 31)
     errors.push('결제일은 1~31 사이여야 합니다.');

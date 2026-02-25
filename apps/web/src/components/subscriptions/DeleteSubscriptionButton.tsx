@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { isRedirectError } from 'next/dist/client/components/redirect';
 import { Button } from '@/components/ui/Button';
 import { deleteSubscription } from '@/lib/actions/subscriptions';
 
@@ -13,14 +14,20 @@ export function DeleteSubscriptionButton({
 }: DeleteSubscriptionButtonProps) {
   const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   async function handleDelete() {
     setLoading(true);
+    setError('');
     try {
-      await deleteSubscription(subscriptionId);
-    } catch {
-      // redirect throws
-    } finally {
+      const result = await deleteSubscription(subscriptionId);
+      if (result?.error) {
+        setError(result.error);
+        setLoading(false);
+      }
+    } catch (err) {
+      if (isRedirectError(err)) throw err;
+      setError('삭제 중 오류가 발생했습니다.');
       setLoading(false);
     }
   }
@@ -28,6 +35,7 @@ export function DeleteSubscriptionButton({
   if (confirming) {
     return (
       <div className="flex items-center gap-2">
+        {error && <span className="text-sm text-red-600">{error}</span>}
         <span className="text-sm text-red-600">정말 삭제하시겠습니까?</span>
         <Button
           variant="danger"

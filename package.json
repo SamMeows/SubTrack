@@ -10,7 +10,7 @@
     "dev": "npm run dev --workspace=apps/web",
     "dev:web": "npm run dev --workspace=apps/web",
     "dev:ext": "npm run dev --workspace=apps/extension",
-    "build": "npm run build --workspaces",
+    "build": "npm run build --workspaces --if-present",
     "build:web": "npm run build --workspace=apps/web",
     "build:ext": "npm run build --workspace=apps/extension",
     "lint": "npm run lint --workspaces --if-present",
