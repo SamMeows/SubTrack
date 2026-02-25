@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { createClient } from '@/lib/supabase/client';
+import { logout } from '@/lib/actions/auth';
 
 const navItems = [
   { href: '/dashboard', label: '대시보드' },
@@ -18,14 +18,6 @@ interface SidebarProps {
 
 export function Sidebar({ userEmail, open, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
-
-  async function handleLogout() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push('/login');
-    router.refresh();
-  }
 
   return (
     <>
@@ -75,12 +67,14 @@ export function Sidebar({ userEmail, open, onClose }: SidebarProps) {
         {/* 유저 정보 + 로그아웃 */}
         <div className="border-t border-gray-200 p-4">
           <p className="truncate text-xs text-gray-500">{userEmail}</p>
-          <button
-            onClick={handleLogout}
-            className="mt-2 text-sm text-gray-600 hover:text-gray-900"
-          >
-            로그아웃
-          </button>
+          <form action={logout}>
+            <button
+              type="submit"
+              className="mt-2 text-sm text-gray-600 hover:text-gray-900"
+            >
+              로그아웃
+            </button>
+          </form>
         </div>
       </aside>
     </>
