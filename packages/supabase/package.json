@@ -1,0 +1,10 @@
+{
+  "name": "@subtrack/supabase",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "db:migrate": "supabase db push",
+    "db:reset": "supabase db reset",
+    "db:gen-types": "supabase gen types typescript --local > ../shared/src/database.types.ts"
+  }
+}

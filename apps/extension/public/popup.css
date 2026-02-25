@@ -1,0 +1,180 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  width: 340px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+  color: #1a1a1a;
+  background: #fff;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.icon-btn {
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #6b7280;
+  transition: background 0.15s;
+}
+
+.icon-btn:hover {
+  background: #f3f4f6;
+}
+
+/* Service List */
+.service-list {
+  padding: 8px 0;
+}
+
+.service-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  transition: background 0.1s;
+}
+
+.service-row:hover {
+  background: #f9fafb;
+}
+
+.status-dot {
+  font-size: 10px;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.status-success .status-dot { color: #22c55e; }
+.status-fail .status-dot { color: #ef4444; }
+.status-pending .status-dot { color: #f59e0b; }
+.status-no_auth .status-dot { color: #d1d5db; }
+
+.service-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.status-label {
+  font-size: 11px;
+  color: #9ca3af;
+}
+
+/* Buttons */
+.btn-primary {
+  display: block;
+  width: calc(100% - 32px);
+  margin: 8px 16px;
+  padding: 10px;
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-primary:hover {
+  background: #2563eb;
+}
+
+.btn-primary:disabled {
+  background: #93c5fd;
+  cursor: not-allowed;
+}
+
+/* Dashboard Link */
+.link-dashboard {
+  display: block;
+  text-align: center;
+  padding: 8px 16px 12px;
+  color: #6b7280;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.link-dashboard:hover {
+  color: #3b82f6;
+}
+
+/* Settings View */
+.settings-view {
+  padding: 12px 16px;
+}
+
+.settings-view h2 {
+  font-size: 15px;
+  margin: 4px 0 12px;
+}
+
+.settings-group {
+  margin-bottom: 16px;
+}
+
+.settings-group h3 {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.settings-group label {
+  display: block;
+  font-size: 12px;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.settings-group input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  margin-top: 2px;
+  margin-bottom: 4px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.settings-group input:focus {
+  border-color: #3b82f6;
+}
+
+.hint {
+  font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+/* Utilities */
+.hidden {
+  display: none !important;
+}
