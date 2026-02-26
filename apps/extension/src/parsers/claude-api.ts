@@ -10,6 +10,7 @@ import { notifySessionExpired } from '../utils/notifications';
  *  1. 세션 쿠키로 조직 목록 조회 → 첫 번째 org_id 추출
  *  2. prepaid/credits 엔드포인트에서 잔액 조회
  *  3. current_spend 엔드포인트에서 사용량 조회
+ *  4. invoices 엔드포인트에서 배치별 만료 정보 조회
  */
 export class ClaudeApiParser implements ServiceParser {
   name = 'Anthropic API';
@@ -50,14 +51,9 @@ export class ClaudeApiParser implements ServiceParser {
     headers: Record<string, string>,
   ): Promise<string | null> {
     try {
-      console.log('[SubTrack] Claude API: fetching organization list');
       const res = await fetch(
         'https://platform.claude.com/api/organizations',
         { headers },
-      );
-
-      console.log(
-        `[SubTrack] Claude API orgs response: ${res.status} ${res.statusText}`,
       );
 
       if (res.status === 401 || res.status === 403) {
@@ -65,33 +61,23 @@ export class ClaudeApiParser implements ServiceParser {
         return null;
       }
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        console.log('[SubTrack] Claude API orgs error body:', text.slice(0, 500));
-        return null;
-      }
+      if (!res.ok) return null;
 
       const data = await res.json();
-      console.log('[SubTrack] Claude API orgs response data:', JSON.stringify(data).slice(0, 500));
 
       // 응답이 배열인 경우 첫 번째 조직의 id 사용
       if (Array.isArray(data) && data.length > 0) {
-        const orgId = data[0].uuid ?? data[0].organization_id ?? String(data[0].id);
-        console.log(`[SubTrack] Claude API: using org_id=${orgId}`);
-        return orgId ?? null;
+        return data[0].uuid ?? data[0].organization_id ?? String(data[0].id) ?? null;
       }
 
       // 응답이 객체(단일 조직)인 경우
       if (data.id || data.uuid || data.organization_id) {
-        const orgId = data.uuid ?? data.organization_id ?? String(data.id);
-        console.log(`[SubTrack] Claude API: using org_id=${orgId}`);
-        return orgId ?? null;
+        return data.uuid ?? data.organization_id ?? String(data.id) ?? null;
       }
 
-      console.log('[SubTrack] Claude API: could not extract org_id from response');
       return null;
-    } catch (error) {
-      console.error('[SubTrack] Claude API: failed to fetch organizations:', error);
+    } catch {
+      console.error('[SubTrack] Claude API: failed to fetch organizations');
       return null;
     }
   }
@@ -99,7 +85,6 @@ export class ClaudeApiParser implements ServiceParser {
   async collect(): Promise<CreditData | null> {
     const headers = await this.buildHeaders();
     if (!headers) {
-      console.log('[SubTrack] Claude API: no session cookie found');
       notifySessionExpired(this.name);
       return null;
     }
@@ -107,20 +92,12 @@ export class ClaudeApiParser implements ServiceParser {
     try {
       // 1. 조직 ID 조회
       const orgId = await this.getOrganizationId(headers);
-      if (!orgId) {
-        console.log('[SubTrack] Claude API: no organization found');
-        return null;
-      }
+      if (!orgId) return null;
 
       // 2. prepaid/credits 엔드포인트에서 잔액 조회
-      console.log(`[SubTrack] Claude API: fetching credits for org=${orgId}`);
       const creditsRes = await fetch(
         `https://platform.claude.com/api/organizations/${orgId}/prepaid/credits`,
         { headers },
-      );
-
-      console.log(
-        `[SubTrack] Claude API credits response: ${creditsRes.status} ${creditsRes.statusText}`,
       );
 
       if (creditsRes.status === 401 || creditsRes.status === 403) {
@@ -133,10 +110,6 @@ export class ClaudeApiParser implements ServiceParser {
 
       if (creditsRes.ok) {
         const creditsData = await creditsRes.json();
-        console.log(
-          '[SubTrack] Claude API credits data:',
-          JSON.stringify(creditsData).slice(0, 500),
-        );
 
         // 응답: { amount: 1502420, currency: "USD" }
         // amount는 센트 단위 → 달러로 변환
@@ -152,32 +125,19 @@ export class ClaudeApiParser implements ServiceParser {
           creditsData.total_credits ??
           creditsData.granted ??
           remainingCredits;
-      } else {
-        const errorText = await creditsRes.text().catch(() => '');
-        console.log('[SubTrack] Claude API credits error body:', errorText.slice(0, 500));
       }
 
       // 3. current_spend 엔드포인트에서 현재 사용량 조회
-      console.log(`[SubTrack] Claude API: fetching current spend for org=${orgId}`);
       const spendRes = await fetch(
         `https://platform.claude.com/api/organizations/${orgId}/current_spend`,
         { headers },
-      );
-
-      console.log(
-        `[SubTrack] Claude API spend response: ${spendRes.status} ${spendRes.statusText}`,
       );
 
       let usedCredits = 0;
 
       if (spendRes.ok) {
         const spendData = await spendRes.json();
-        console.log(
-          '[SubTrack] Claude API spend data:',
-          JSON.stringify(spendData).slice(0, 500),
-        );
 
-        // 응답: { amount: 59, resets_at: "..." }
         const rawSpend =
           spendData.amount ??
           spendData.current_spend ??
@@ -186,9 +146,6 @@ export class ClaudeApiParser implements ServiceParser {
           spendData.total_usage ??
           0;
         usedCredits = rawSpend / 100; // 센트 → 달러
-      } else {
-        const errorText = await spendRes.text().catch(() => '');
-        console.log('[SubTrack] Claude API spend error body:', errorText.slice(0, 500));
       }
 
       // totalCredits가 0이면 remaining + used로 추정
@@ -200,7 +157,7 @@ export class ClaudeApiParser implements ServiceParser {
       const creditGrants = await this.fetchCreditGrants(orgId, headers);
 
       console.log(
-        `[SubTrack] Claude API: remaining=${remainingCredits}, used=${usedCredits}, total=${totalCredits}, grants=${creditGrants.length}`,
+        `[SubTrack] Claude API: collected (grants=${creditGrants.length})`,
       );
 
       return {
@@ -212,8 +169,8 @@ export class ClaudeApiParser implements ServiceParser {
         collectedAt: new Date().toISOString(),
         creditGrants: creditGrants.length > 0 ? creditGrants : undefined,
       };
-    } catch (error) {
-      console.error(`[SubTrack] ${this.name} collection failed:`, error);
+    } catch {
+      console.error(`[SubTrack] ${this.name} collection failed`);
       return null;
     }
   }
@@ -227,16 +184,12 @@ export class ClaudeApiParser implements ServiceParser {
     headers: Record<string, string>,
   ): Promise<CreditGrant[]> {
     try {
-      console.log(`[SubTrack] Claude API: fetching invoices for org=${orgId}`);
       const res = await fetch(
         `https://platform.claude.com/api/organizations/${orgId}/invoices`,
         { headers },
       );
 
-      if (!res.ok) {
-        console.log(`[SubTrack] Claude API invoices response: ${res.status}`);
-        return [];
-      }
+      if (!res.ok) return [];
 
       const data = await res.json();
       const invoices: Array<{
@@ -251,31 +204,23 @@ export class ClaudeApiParser implements ServiceParser {
       const grants: CreditGrant[] = [];
 
       for (const inv of invoices) {
-        // 크레딧 관련 항목만 필터
         if (!creditTypes.includes(inv.type)) continue;
         if (!inv.expires_at) continue;
-
-        // 이미 만료된 항목 제외
         if (new Date(inv.expires_at).getTime() <= now) continue;
 
-        const amountUsd = (inv.amount ?? 0) / 100; // 센트 → 달러
+        const amountUsd = (inv.amount ?? 0) / 100;
         grants.push({
           grantId: `${inv.type}_${inv.effective_at ?? ''}`,
           grantAmount: amountUsd,
-          usedAmount: 0, // API에서 배치별 사용량 미제공
+          usedAmount: 0,
           remainingAmount: amountUsd,
           expiresAt: inv.expires_at,
           effectiveAt: inv.effective_at,
         });
       }
 
-      if (grants.length > 0) {
-        console.log(`[SubTrack] Claude API: extracted ${grants.length} credit grants from invoices`);
-      }
-
       return grants;
-    } catch (e) {
-      console.log('[SubTrack] Claude API: invoices fetch failed:', e);
+    } catch {
       return [];
     }
   }

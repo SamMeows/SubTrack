@@ -18,11 +18,7 @@ export class MeshySessionParser implements ServiceParser {
 
   async checkAuth(): Promise<boolean> {
     const result = await chrome.storage.local.get('meshy_access_token');
-    if (!result.meshy_access_token) {
-      console.log('[SubTrack] Meshy: no cached token. Visit www.meshy.ai to trigger caching.');
-      return false;
-    }
-    return true;
+    return !!result.meshy_access_token;
   }
 
   async collect(): Promise<CreditData | null> {
@@ -30,14 +26,11 @@ export class MeshySessionParser implements ServiceParser {
     const token = result.meshy_access_token ?? null;
 
     if (!token) {
-      console.log('[SubTrack] Meshy: no access token (visit www.meshy.ai first)');
       notifySessionExpired(this.name);
       return null;
     }
 
     try {
-      console.log('[SubTrack] Meshy: fetching credits with Bearer token');
-
       const res = await fetch('https://api.meshy.ai/web/v1/me/credits', {
         headers: {
           Accept: 'application/json',
@@ -45,27 +38,15 @@ export class MeshySessionParser implements ServiceParser {
         },
       });
 
-      console.log(
-        `[SubTrack] Meshy credits response: ${res.status} ${res.statusText}`,
-      );
-
       if (res.status === 401 || res.status === 403) {
         await chrome.storage.local.remove('meshy_access_token');
         notifySessionExpired(this.name);
         return null;
       }
 
-      if (!res.ok) {
-        const errorText = await res.text().catch(() => '');
-        console.log('[SubTrack] Meshy credits error:', errorText.slice(0, 500));
-        return null;
-      }
+      if (!res.ok) return null;
 
       const data = await res.json();
-      console.log(
-        '[SubTrack] Meshy credits data:',
-        JSON.stringify(data).slice(0, 500),
-      );
 
       // API 응답 구조: { code: "OK", result: { creditBalance, freeCreditBalance, rolloverBalance, shareCreditEarned, ... } }
       const r = data.result ?? data;
@@ -82,9 +63,7 @@ export class MeshySessionParser implements ServiceParser {
         shareCreditEarned +
         featureCreditEarned;
 
-      console.log(
-        `[SubTrack] Meshy parsed credits: total=${totalCredits} (credit=${creditBalance} free=${freeCreditBalance} rollover=${rolloverBalance} share=${shareCreditEarned} feature=${featureCreditEarned})`,
-      );
+      console.log('[SubTrack] Meshy AI: collected');
 
       return {
         serviceName: this.name,
@@ -94,8 +73,8 @@ export class MeshySessionParser implements ServiceParser {
         unit: 'credits',
         collectedAt: new Date().toISOString(),
       };
-    } catch (error) {
-      console.error(`[SubTrack] ${this.name} collection failed:`, error);
+    } catch {
+      console.error(`[SubTrack] ${this.name} collection failed`);
       return null;
     }
   }

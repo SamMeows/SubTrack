@@ -19,9 +19,6 @@ export class ElevenLabsApiParser implements ServiceParser {
 
   async checkAuth(): Promise<boolean> {
     const cookieHeader = await this.getAnyCookieHeader();
-    if (!cookieHeader) {
-      console.log('[SubTrack] ElevenLabs: no cookies found. Log in to elevenlabs.io first.');
-    }
     return cookieHeader !== null;
   }
 
@@ -49,24 +46,18 @@ export class ElevenLabsApiParser implements ServiceParser {
 
     for (const url of urls) {
       const cookies = await chrome.cookies.getAll({ url });
-      console.log(`[SubTrack] ElevenLabs: cookies for ${url}: ${cookies.map(c => c.name).join(', ')}`);
       for (const name of tokenNames) {
         const cookie = cookies.find((c) => c.name === name);
-        if (cookie) {
-          console.log(`[SubTrack] ElevenLabs: found token '${name}' from '${url}'`);
-          return cookie.value;
-        }
+        if (cookie) return cookie.value;
       }
     }
 
-    console.log('[SubTrack] ElevenLabs: no session token found');
     return null;
   }
 
   async collect(): Promise<CreditData | null> {
     const cookieHeader = await this.getAnyCookieHeader();
     if (!cookieHeader) {
-      console.log('[SubTrack] ElevenLabs: no session cookie found');
       notifySessionExpired(this.name);
       return null;
     }
@@ -82,17 +73,9 @@ export class ElevenLabsApiParser implements ServiceParser {
         headers['Authorization'] = `Bearer ${sessionToken}`;
       }
 
-      console.log(
-        `[SubTrack] ElevenLabs: fetching subscription (hasCookie=true, hasToken=${!!sessionToken})`,
-      );
-
       const res = await fetch(
         'https://api.elevenlabs.io/v1/user/subscription',
         { headers },
-      );
-
-      console.log(
-        `[SubTrack] ElevenLabs response: ${res.status} ${res.statusText}`,
       );
 
       if (res.status === 401 || res.status === 403) {
@@ -100,20 +83,14 @@ export class ElevenLabsApiParser implements ServiceParser {
         return null;
       }
 
-      if (!res.ok) {
-        const errorText = await res.text().catch(() => '');
-        console.log('[SubTrack] ElevenLabs error body:', errorText.slice(0, 500));
-        return null;
-      }
+      if (!res.ok) return null;
 
       const data = await res.json();
-      console.log(
-        '[SubTrack] ElevenLabs data:',
-        JSON.stringify(data).slice(0, 500),
-      );
 
       const used = data.character_count ?? 0;
       const total = data.character_limit ?? 0;
+
+      console.log('[SubTrack] ElevenLabs: collected');
 
       return {
         serviceName: this.name,
@@ -123,8 +100,8 @@ export class ElevenLabsApiParser implements ServiceParser {
         unit: 'characters',
         collectedAt: new Date().toISOString(),
       };
-    } catch (error) {
-      console.error(`[SubTrack] ${this.name} collection failed:`, error);
+    } catch {
+      console.error(`[SubTrack] ${this.name} collection failed`);
       return null;
     }
   }

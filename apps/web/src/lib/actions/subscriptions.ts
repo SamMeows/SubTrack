@@ -94,6 +94,9 @@ export async function updateSubscription(
   if (errors.length > 0) return { error: errors[0] };
 
   const supabase = createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: '인증이 필요합니다.' };
+
   const fields = extractFields(formData);
 
   const { error } = await supabase
@@ -111,6 +114,8 @@ export async function updateSubscription(
 
 export async function deleteSubscription(id: string): Promise<{ error?: string }> {
   const supabase = createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: '인증이 필요합니다.' };
 
   const { error } = await supabase.from('subscriptions').delete().eq('id', id);
 
@@ -126,6 +131,8 @@ export async function toggleSubscriptionActive(
   isActive: boolean,
 ): Promise<{ error?: string }> {
   const supabase = createServerSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: '인증이 필요합니다.' };
 
   const { error } = await supabase
     .from('subscriptions')

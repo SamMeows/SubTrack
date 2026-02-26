@@ -48,7 +48,6 @@ export class SunoSessionParser implements ServiceParser {
     const cookieHeader = await getCookieHeader('.suno.com') ?? await getCookieHeader('.suno.ai');
 
     if (!sessionToken && !cookieHeader) {
-      console.log('[SubTrack] Suno: no session cookie found');
       notifySessionExpired(this.name);
       return null;
     }
@@ -65,29 +64,23 @@ export class SunoSessionParser implements ServiceParser {
         headers['Cookie'] = cookieHeader;
       }
 
-      console.log(`[SubTrack] Suno: fetching billing info (hasToken=${!!sessionToken}, hasCookie=${!!cookieHeader})`);
-
       const res = await fetch('https://studio-api.prod.suno.com/api/billing/info/', {
         headers,
       });
 
-      console.log(`[SubTrack] Suno response: ${res.status} ${res.statusText}`);
       if (res.status === 401 || res.status === 403) {
         notifySessionExpired(this.name);
         return null;
       }
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        console.log(`[SubTrack] Suno error body:`, text.slice(0, 200));
-        return null;
-      }
+      if (!res.ok) return null;
+
       const data = await res.json();
       const remaining = data.total_credits_left ?? (data.monthly_limit - data.monthly_usage);
       const used = data.monthly_usage ?? 0;
       const total = data.monthly_limit ?? 0;
 
-      console.log(`[SubTrack] Suno credits: remaining=${remaining}, used=${used}, total=${total}`);
+      console.log('[SubTrack] Suno: collected');
 
       return {
         serviceName: this.name,
@@ -97,8 +90,8 @@ export class SunoSessionParser implements ServiceParser {
         unit: 'credits',
         collectedAt: new Date().toISOString(),
       };
-    } catch (error) {
-      console.error(`[SubTrack] ${this.name} collection failed:`, error);
+    } catch {
+      console.error(`[SubTrack] ${this.name} collection failed`);
       return null;
     }
   }

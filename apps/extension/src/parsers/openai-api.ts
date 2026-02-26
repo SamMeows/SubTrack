@@ -21,9 +21,6 @@ export class OpenAiApiParser implements ServiceParser {
 
   async checkAuth(): Promise<boolean> {
     const token = await this.getOAuthToken();
-    if (!token) {
-      console.log('[SubTrack] OpenAI: no cached token. Visit platform.openai.com to trigger token caching.');
-    }
     return !!token;
   }
 
@@ -39,7 +36,6 @@ export class OpenAiApiParser implements ServiceParser {
    */
   private async getSessionKey(oauthToken: string): Promise<string | null> {
     try {
-      console.log('[SubTrack] OpenAI: exchanging OAuth token for session key');
       const res = await fetch('https://api.openai.com/dashboard/onboarding/login', {
         method: 'POST',
         headers: {
@@ -49,19 +45,9 @@ export class OpenAiApiParser implements ServiceParser {
         body: JSON.stringify({}),
       });
 
-      console.log(`[SubTrack] OpenAI login response: ${res.status}`);
-
-      if (!res.ok) {
-        const errText = await res.text().catch(() => '');
-        console.log('[SubTrack] OpenAI login error:', errText.slice(0, 300));
-        return null;
-      }
+      if (!res.ok) return null;
 
       const data = await res.json();
-      console.log(
-        '[SubTrack] OpenAI login data keys:',
-        JSON.stringify(Object.keys(data)).slice(0, 200),
-      );
 
       // session key 추출 시도 (여러 가능한 경로)
       const sessionKey =
@@ -73,17 +59,13 @@ export class OpenAiApiParser implements ServiceParser {
         null;
 
       if (sessionKey) {
-        console.log(`[SubTrack] OpenAI session key obtained: ${sessionKey.substring(0, 15)}...`);
         // 캐시하여 재사용
         await chrome.storage.local.set({ openai_session_key: sessionKey });
-      } else {
-        console.log('[SubTrack] OpenAI: could not extract session key from login response');
-        console.log('[SubTrack] OpenAI login response:', JSON.stringify(data).slice(0, 500));
       }
 
       return sessionKey;
-    } catch (e) {
-      console.error('[SubTrack] OpenAI session key exchange failed:', e);
+    } catch {
+      console.error('[SubTrack] OpenAI session key exchange failed');
       return null;
     }
   }
@@ -91,7 +73,6 @@ export class OpenAiApiParser implements ServiceParser {
   async collect(): Promise<CreditData | null> {
     const oauthToken = await this.getOAuthToken();
     if (!oauthToken) {
-      console.log('[SubTrack] OpenAI: no access token found (visit platform.openai.com first)');
       notifySessionExpired(this.name);
       return null;
     }
@@ -105,7 +86,6 @@ export class OpenAiApiParser implements ServiceParser {
       }
 
       if (!sessionKey) {
-        console.log('[SubTrack] OpenAI: failed to obtain session key');
         notifySessionExpired(this.name);
         return null;
       }
@@ -116,19 +96,13 @@ export class OpenAiApiParser implements ServiceParser {
       };
 
       // 2. 크레딧 잔액 조회
-      console.log('[SubTrack] OpenAI: fetching credit grants with session key');
       const creditsRes = await fetch(
         'https://api.openai.com/v1/dashboard/billing/credit_grants',
         { headers },
       );
 
-      console.log(
-        `[SubTrack] OpenAI credits response: ${creditsRes.status} ${creditsRes.statusText}`,
-      );
-
       if (creditsRes.status === 401 || creditsRes.status === 403) {
         // session key 만료 → 재시도
-        console.log('[SubTrack] OpenAI: session key expired, retrying with new key');
         await chrome.storage.local.remove('openai_session_key');
         const newKey = await this.getSessionKey(oauthToken);
         if (!newKey) {
@@ -144,7 +118,6 @@ export class OpenAiApiParser implements ServiceParser {
           { headers },
         );
 
-        console.log(`[SubTrack] OpenAI credits retry: ${retryRes.status}`);
         if (!retryRes.ok) {
           await chrome.storage.local.remove('openai_access_token');
           await chrome.storage.local.remove('openai_session_key');
@@ -156,8 +129,8 @@ export class OpenAiApiParser implements ServiceParser {
       }
 
       return this.parseBillingData(creditsRes, headers);
-    } catch (error) {
-      console.error(`[SubTrack] ${this.name} collection failed:`, error);
+    } catch {
+      console.error(`[SubTrack] ${this.name} collection failed`);
       return null;
     }
   }
@@ -180,10 +153,6 @@ export class OpenAiApiParser implements ServiceParser {
 
     if (creditsRes.ok) {
       const creditsData = await creditsRes.json();
-      console.log(
-        '[SubTrack] OpenAI credits data:',
-        JSON.stringify(creditsData).slice(0, 500),
-      );
 
       totalCredits = creditsData.total_granted ?? creditsData.total ?? 0;
       usedCredits = creditsData.total_used ?? creditsData.used ?? 0;
@@ -206,10 +175,6 @@ export class OpenAiApiParser implements ServiceParser {
           effectiveAt: this.unixToIso(grant.effective_at),
         });
       }
-
-      if (creditGrants.length > 0) {
-        console.log(`[SubTrack] OpenAI: extracted ${creditGrants.length} credit grants with expiry info`);
-      }
     }
 
     // 구독 정보 조회 (보조)
@@ -221,10 +186,6 @@ export class OpenAiApiParser implements ServiceParser {
 
       if (subRes.ok) {
         const subData = await subRes.json();
-        console.log(
-          '[SubTrack] OpenAI subscription data:',
-          JSON.stringify(subData).slice(0, 500),
-        );
         if (totalCredits === 0 && subData.hard_limit_usd) {
           totalCredits = subData.hard_limit_usd;
         }
@@ -238,7 +199,7 @@ export class OpenAiApiParser implements ServiceParser {
     }
 
     console.log(
-      `[SubTrack] OpenAI: remaining=${remainingCredits}, used=${usedCredits}, total=${totalCredits}`,
+      `[SubTrack] OpenAI: collected (grants=${creditGrants.length})`,
     );
 
     return {
