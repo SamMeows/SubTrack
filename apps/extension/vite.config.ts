@@ -10,6 +10,8 @@ export default defineConfig({
       input: {
         background: resolve(__dirname, 'src/background/index.ts'),
         popup: resolve(__dirname, 'src/popup/index.ts'),
+        'content-openai': resolve(__dirname, 'src/content/openai-token.ts'),
+        'content-meshy': resolve(__dirname, 'src/content/meshy-token.ts'),
       },
       output: {
         entryFileNames: '[name].js',

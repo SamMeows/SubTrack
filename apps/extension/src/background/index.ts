@@ -6,6 +6,7 @@ import { getSettings, setCollectionStatus } from '../utils/storage';
 import { notifyCollectionError } from '../utils/notifications';
 
 type CreditLogInsert = Database['public']['Tables']['credit_logs']['Insert'];
+type CreditGrantInsert = Database['public']['Tables']['credit_grants']['Insert'];
 type SubscriptionUpdate = Database['public']['Tables']['subscriptions']['Update'];
 
 // 30분 주기 수집 알람
@@ -38,14 +39,15 @@ async function collectAllCredits(): Promise<void> {
         timestamp: new Date().toISOString(),
       });
 
+      console.log(`[SubTrack] ${parser.name}: collecting...`);
       const result = await parser.collect();
+      console.log(`[SubTrack] ${parser.name}: result =`, result);
       if (result) {
         await saveToSupabase(parser.name, result);
         await setCollectionStatus(parser.name, {
           status: 'success',
           timestamp: new Date().toISOString(),
         });
-        console.log(`[SubTrack] ${parser.name}: collected`, result);
       } else {
         await setCollectionStatus(parser.name, {
           status: 'fail',
@@ -73,7 +75,7 @@ async function saveToSupabase(
 ): Promise<void> {
   const supabase = await getSupabaseClient();
   if (!supabase) {
-    console.warn('[SubTrack] Supabase not configured, skipping save');
+    console.warn(`[SubTrack] ${serviceName}: Supabase not configured, skipping save`);
     return;
   }
 
@@ -87,8 +89,8 @@ async function saveToSupabase(
 
   if (subError || !subscriptions?.length) {
     console.warn(
-      `[SubTrack] No active subscription for ${serviceName}`,
-      subError,
+      `[SubTrack] ${serviceName}: no active subscription found`,
+      subError?.message ?? '',
     );
     return;
   }
@@ -110,7 +112,8 @@ async function saveToSupabase(
       .insert(logRow);
 
     if (logError) {
-      console.error('[SubTrack] Failed to insert credit log:', logError);
+      console.error(`[SubTrack] ${serviceName}: failed to insert credit log:`, logError);
+      return;
     }
 
     // 구독의 remaining_credits 업데이트
@@ -127,13 +130,52 @@ async function saveToSupabase(
       .eq('id', subscriptionId);
 
     if (updateError) {
-      console.error('[SubTrack] Failed to update subscription:', updateError);
+      console.error(`[SubTrack] ${serviceName}: failed to update subscription:`, updateError);
+    } else {
+      console.log(`[SubTrack] ${serviceName}: saved (remaining=${data.remainingCredits})`);
+    }
+  }
+
+  // 크레딧 배치별 만료 정보 저장 (스냅샷 교체)
+  if (data.creditGrants && data.creditGrants.length > 0) {
+    // 기존 grants 삭제
+    const { error: deleteError } = await supabase
+      .from('credit_grants')
+      .delete()
+      .eq('subscription_id', subscriptionId);
+
+    if (deleteError) {
+      console.error(`[SubTrack] ${serviceName}: failed to delete old grants:`, deleteError);
+    } else {
+      // 새 grants 삽입
+      const grantRows: CreditGrantInsert[] = data.creditGrants.map((g) => ({
+        subscription_id: subscriptionId,
+        grant_id: g.grantId || null,
+        grant_amount: g.grantAmount,
+        used_amount: g.usedAmount,
+        remaining_amount: g.remainingAmount,
+        expires_at: g.expiresAt,
+        effective_at: g.effectiveAt,
+        collected_at: data.collectedAt,
+      }));
+
+      const { error: insertError } = await supabase
+        .from('credit_grants')
+        .insert(grantRows);
+
+      if (insertError) {
+        console.error(`[SubTrack] ${serviceName}: failed to insert grants:`, insertError);
+      } else {
+        console.log(`[SubTrack] ${serviceName}: saved ${grantRows.length} credit grants`);
+      }
     }
   }
 }
 
 // Popup과의 메시지 통신
+console.log('[SubTrack BG] Service worker loaded');
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  console.log('[SubTrack BG] Message received:', message);
   if (message.type === 'COLLECT_NOW') {
     collectAllCredits().then(() => sendResponse({ success: true }));
     return true; // async sendResponse 유지

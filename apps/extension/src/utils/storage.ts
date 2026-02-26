@@ -16,6 +16,7 @@ export interface ExtensionSettings {
   supabase_url: string;
   supabase_anon_key: string;
   user_access_token: string;
+  user_refresh_token: string;
   api_keys: ApiKeys;
   collection_status: Record<string, CollectionStatus>;
   last_collected: Record<string, string>;
@@ -25,6 +26,7 @@ const DEFAULTS: ExtensionSettings = {
   supabase_url: '',
   supabase_anon_key: '',
   user_access_token: '',
+  user_refresh_token: '',
   api_keys: {},
   collection_status: {},
   last_collected: {},

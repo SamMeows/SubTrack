@@ -8,6 +8,7 @@ import { logout } from '@/lib/actions/auth';
 const navItems = [
   { href: '/dashboard', label: '대시보드' },
   { href: '/subscriptions', label: '구독 관리' },
+  { href: '/settings', label: '설정' },
 ];
 
 interface SidebarProps {

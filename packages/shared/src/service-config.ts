@@ -2,7 +2,7 @@ import type { ServiceName } from './constants';
 import type { ServiceDataSource } from './types';
 
 /** 서비스별 인증 방식 */
-export type AuthMethod = 'api-key' | 'session-cookie';
+export type AuthMethod = 'api-key' | 'session-cookie' | 'none';
 
 /** 서비스 설정 정보 */
 export interface ServiceConfig {
@@ -28,27 +28,39 @@ export interface ServiceConfig {
 
 /** 서비스별 설정 맵 */
 export const SERVICE_CONFIGS: Record<ServiceName, ServiceConfig> = {
-  'Claude API': {
-    name: 'Claude API',
-    shortName: 'Claude',
+  // ── API 서비스 (크레딧 수집 가능) ──
+  'Anthropic API': {
+    name: 'Anthropic API',
+    shortName: 'Anthropic',
     color: '#D97757',
     dataSource: 'api',
     authMethod: 'api-key',
     apiBaseUrl: 'https://api.anthropic.com',
     websiteUrl: 'https://console.anthropic.com',
-    defaultCreditUnit: 'tokens',
-    iconId: 'claude',
+    defaultCreditUnit: 'USD',
+    iconId: 'anthropic',
   },
-  'OpenAI': {
-    name: 'OpenAI',
-    shortName: 'OpenAI',
+  'OpenAI API': {
+    name: 'OpenAI API',
+    shortName: 'OpenAI API',
     color: '#10A37F',
     dataSource: 'api',
     authMethod: 'api-key',
     apiBaseUrl: 'https://api.openai.com',
     websiteUrl: 'https://platform.openai.com',
-    defaultCreditUnit: 'tokens',
+    defaultCreditUnit: 'USD',
     iconId: 'openai',
+  },
+  'Google Cloud (Gemini API)': {
+    name: 'Google Cloud (Gemini API)',
+    shortName: 'Gemini API',
+    color: '#4285F4',
+    dataSource: 'manual',
+    authMethod: 'none',
+    apiBaseUrl: null,
+    websiteUrl: 'https://console.cloud.google.com',
+    defaultCreditUnit: 'USD',
+    iconId: 'google-cloud',
   },
   'ElevenLabs': {
     name: 'ElevenLabs',
@@ -61,6 +73,43 @@ export const SERVICE_CONFIGS: Record<ServiceName, ServiceConfig> = {
     defaultCreditUnit: 'characters',
     iconId: 'elevenlabs',
   },
+
+  // ── 구독형 서비스 (크레딧 수집 불필요) ──
+  'Claude': {
+    name: 'Claude',
+    shortName: 'Claude',
+    color: '#D97757',
+    dataSource: 'manual',
+    authMethod: 'none',
+    apiBaseUrl: null,
+    websiteUrl: 'https://claude.ai',
+    defaultCreditUnit: 'credits',
+    iconId: 'claude',
+  },
+  'ChatGPT': {
+    name: 'ChatGPT',
+    shortName: 'ChatGPT',
+    color: '#10A37F',
+    dataSource: 'manual',
+    authMethod: 'none',
+    apiBaseUrl: null,
+    websiteUrl: 'https://chat.openai.com',
+    defaultCreditUnit: 'credits',
+    iconId: 'chatgpt',
+  },
+  'Gemini': {
+    name: 'Gemini',
+    shortName: 'Gemini',
+    color: '#4285F4',
+    dataSource: 'manual',
+    authMethod: 'none',
+    apiBaseUrl: null,
+    websiteUrl: 'https://gemini.google.com',
+    defaultCreditUnit: 'credits',
+    iconId: 'gemini',
+  },
+
+  // ── 세션 기반 서비스 (Extension 크레딧 수집) ──
   'Suno': {
     name: 'Suno',
     shortName: 'Suno',

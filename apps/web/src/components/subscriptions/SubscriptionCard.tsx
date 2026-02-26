@@ -3,7 +3,7 @@ import { formatCurrency, getDaysUntilBilling, calculateCreditPercentage } from '
 import type { Subscription } from '@subtrack/shared';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
-import { getServiceStyle } from '@/lib/service-config';
+import { getServiceStyle, formatCardDisplay, formatCreditValue, resolveCreditUnit } from '@/lib/service-config';
 
 interface SubscriptionCardProps {
   subscription: Subscription;
@@ -20,6 +20,15 @@ export function SubscriptionCard({ subscription }: SubscriptionCardProps) {
         subscription.total_credits,
       )
     : null;
+  const isPrepaid = subscription.billing_type === 'prepaid';
+  const cardDisplay = formatCardDisplay(
+    subscription.payment_card_last4,
+    subscription.card_nickname,
+  );
+  const displayUnit = resolveCreditUnit(
+    subscription.credit_unit,
+    subscription.currency,
+  );
 
   return (
     <Link href={`/subscriptions/${subscription.id}`}>
@@ -44,36 +53,61 @@ export function SubscriptionCard({ subscription }: SubscriptionCardProps) {
                 )}
               </div>
             </div>
-            <Badge variant={subscription.is_active ? 'success' : 'default'}>
-              {subscription.is_active ? '활성' : '비활성'}
-            </Badge>
+            <div className="flex items-center gap-1.5">
+              {isPrepaid && (
+                <Badge variant="info">선불</Badge>
+              )}
+              <Badge variant={subscription.is_active ? 'success' : 'default'}>
+                {subscription.is_active ? '활성' : '비활성'}
+              </Badge>
+            </div>
           </div>
 
-          {/* 금액 + 결제일 */}
-          <div className="mt-4 flex items-end justify-between">
-            <p className="text-lg font-bold text-gray-900">
-              {formatCurrency(subscription.monthly_cost, subscription.currency)}
-            </p>
-            <p className="text-xs text-gray-500">
-              매월 {subscription.billing_day}일{' '}
-              <span
-                className={
-                  daysUntil <= 3 ? 'font-medium text-red-600' : 'text-gray-400'
-                }
-              >
-                (D-{daysUntil})
-              </span>
-            </p>
+          {/* 카드 정보 */}
+          {cardDisplay && (
+            <p className="mt-2 text-xs text-gray-400">{cardDisplay}</p>
+          )}
+
+          {/* 금액 + 결제일 (recurring) or 잔여 크레딧 (prepaid) */}
+          <div className="mt-3 flex items-end justify-between">
+            {isPrepaid ? (
+              <>
+                {subscription.remaining_credits != null ? (
+                  <p className="text-lg font-bold text-gray-900">
+                    {formatCreditValue(subscription.remaining_credits, displayUnit)}{' '}
+                    <span className="text-sm font-normal text-gray-500">남음</span>
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-500">크레딧 정보 없음</p>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-bold text-gray-900">
+                  {formatCurrency(subscription.monthly_cost, subscription.currency)}
+                </p>
+                {daysUntil != null && (
+                  <p className="text-xs text-gray-500">
+                    매월 {subscription.billing_day}일{' '}
+                    <span
+                      className={
+                        daysUntil <= 3 ? 'font-medium text-red-600' : 'text-gray-400'
+                      }
+                    >
+                      (D-{daysUntil})
+                    </span>
+                  </p>
+                )}
+              </>
+            )}
           </div>
 
-          {/* 크레딧 바 */}
-          {hasCredits && creditPercent !== null && (
+          {/* 크레딧 바 — 정기 구독만 % 표시 */}
+          {!isPrepaid && hasCredits && creditPercent !== null && (
             <div className="mt-3">
               <div className="flex justify-between text-xs text-gray-500">
-                <span>
-                  크레딧 {creditPercent}% 남음
-                </span>
-                <span>{subscription.credit_unit ?? 'credits'}</span>
+                <span>크레딧 {creditPercent}% 남음</span>
+                <span>{displayUnit}</span>
               </div>
               <div className="mt-1 h-1.5 w-full rounded-full bg-gray-200">
                 <div

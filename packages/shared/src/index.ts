@@ -5,6 +5,7 @@ export type { Database } from './database.types';
 export type {
   Subscription,
   CreditLog,
+  CreditGrant,
   Alert,
   ServiceDataSource,
   AlertType,
@@ -13,8 +14,8 @@ export type {
 } from './types';
 
 // Constants
-export { SERVICE_NAMES, SUPPORTED_CURRENCIES } from './constants';
-export type { ServiceName } from './constants';
+export { SERVICE_NAMES, SUPPORTED_CURRENCIES, BILLING_TYPES } from './constants';
+export type { ServiceName, BillingType } from './constants';
 
 // Service configuration
 export type { ServiceConfig, AuthMethod } from './service-config';
@@ -32,4 +33,6 @@ export {
   getNextBillingDate,
   getDaysUntilBilling,
   formatCredits,
+  formatCardDisplay,
+  isPrepaid,
 } from './helpers';

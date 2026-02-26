@@ -1,3 +1,13 @@
+/** 크레딧 배치별 만료 정보 */
+export interface CreditGrant {
+  grantId: string;
+  grantAmount: number;
+  usedAmount: number;
+  remainingAmount: number;
+  expiresAt: string | null;   // ISO 8601
+  effectiveAt: string | null; // 크레딧 적용일 (ISO 8601)
+}
+
 /** 각 서비스 파서가 구현해야 하는 인터페이스 */
 export interface CreditData {
   serviceName: string;
@@ -6,6 +16,7 @@ export interface CreditData {
   totalCredits: number;
   unit: string; // 'tokens', 'credits', 'characters', 'songs', etc.
   collectedAt: string;
+  creditGrants?: CreditGrant[]; // 배치별 만료 정보 (선불 서비스)
 }
 
 export interface ServiceParser {

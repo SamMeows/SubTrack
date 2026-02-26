@@ -1,9 +1,10 @@
 import Link from 'next/link';
 import { type Currency, type Subscription } from '@subtrack/shared';
 import { getSubscriptions } from '@/lib/data/subscriptions';
-import { getCreditSummary, type CreditSummaryItem } from '@/lib/data/credit-logs';
-import { SpendingSummaryCard } from '@/components/dashboard/SpendingSummaryCard';
+import { getCreditSummary, getExpiringGrants, type CreditSummaryItem, type ExpiringGrantInfo } from '@/lib/data/credit-logs';
+import { SpendingSummaryCard, type CurrencyTotal } from '@/components/dashboard/SpendingSummaryCard';
 import { CreditRemainingChart } from '@/components/dashboard/CreditRemainingChart';
+import { PrepaidCreditList } from '@/components/dashboard/PrepaidCreditList';
 import { RenewalTimeline } from '@/components/dashboard/RenewalTimeline';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -12,11 +13,13 @@ import { Button } from '@/components/ui/Button';
 export default async function DashboardPage() {
   let subscriptions: Subscription[];
   let creditSummary: CreditSummaryItem[];
+  let expiringGrants: ExpiringGrantInfo[] = [];
 
   try {
-    [subscriptions, creditSummary] = await Promise.all([
+    [subscriptions, creditSummary, expiringGrants] = await Promise.all([
       getSubscriptions(),
       getCreditSummary(),
+      getExpiringGrants(30),
     ]);
   } catch {
     return (
@@ -35,22 +38,36 @@ export default async function DashboardPage() {
   }
 
   const activeSubscriptions = subscriptions.filter((s) => s.is_active);
-  const monthlyTotal = activeSubscriptions.reduce(
-    (sum, s) => sum + s.monthly_cost,
-    0,
+
+  // 정기 구독만 월간 지출 합산 (billing_type 미적용 시 recurring으로 간주)
+  const recurringSubscriptions = activeSubscriptions.filter(
+    (s) => (s.billing_type ?? 'recurring') === 'recurring',
+  );
+  const prepaidSubscriptions = activeSubscriptions.filter(
+    (s) => s.billing_type === 'prepaid',
   );
 
-  // 가장 많이 사용되는 통화 (기본 USD)
-  const currencyCounts = activeSubscriptions.reduce(
+  // 통화별 월간 지출 합산
+  const totalsByCurrency = recurringSubscriptions.reduce(
     (acc, s) => {
-      acc[s.currency] = (acc[s.currency] || 0) + 1;
+      const curr = s.currency;
+      acc[curr] = (acc[curr] || 0) + (s.monthly_cost ?? 0);
       return acc;
     },
     {} as Record<string, number>,
   );
-  const primaryCurrency = (
-    Object.entries(currencyCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'USD'
-  ) as Currency;
+  const spendingTotals: CurrencyTotal[] = Object.entries(totalsByCurrency)
+    .filter(([, amount]) => amount > 0)
+    .map(([currency, amount]) => ({ currency: currency as Currency, amount }))
+    .sort((a, b) => b.amount - a.amount);
+
+  // 크레딧 요약: 정기 vs 선불 분리
+  const recurringCredits = creditSummary.filter(
+    (c) => c.billingType === 'recurring',
+  );
+  const prepaidCredits = creditSummary.filter(
+    (c) => c.billingType === 'prepaid',
+  );
 
   if (subscriptions.length === 0) {
     return (
@@ -74,26 +91,40 @@ export default async function DashboardPage() {
       <h1 className="mb-6 text-xl font-bold">대시보드</h1>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        {/* 월간 총 지출 */}
+        {/* 월간 정기 지출 (통화별 분리) */}
         <SpendingSummaryCard
-          total={monthlyTotal}
-          currency={primaryCurrency}
-          activeCount={activeSubscriptions.length}
+          totals={spendingTotals}
+          recurringCount={recurringSubscriptions.length}
+          prepaidCount={prepaidSubscriptions.length}
         />
 
-        {/* 크레딧 잔여량 */}
+        {/* 정기 구독 크레딧 잔여량 */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>크레딧 잔여량</CardTitle>
           </CardHeader>
           <CardContent>
-            <CreditRemainingChart data={creditSummary} />
+            <CreditRemainingChart data={recurringCredits} />
           </CardContent>
         </Card>
       </div>
 
+      {/* 선불 잔여 크레딧 */}
+      {prepaidCredits.length > 0 && (
+        <div className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>선불 잔여 크레딧</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PrepaidCreditList data={prepaidCredits} expiringGrants={expiringGrants} />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* 갱신일 타임라인 */}
-      <div className="mt-6">
+      <div className="mt-4">
         <Card>
           <CardHeader>
             <CardTitle>결제 예정</CardTitle>

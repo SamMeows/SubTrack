@@ -1,4 +1,4 @@
-import type { ServiceName } from './constants';
+import type { ServiceName, BillingType } from './constants';
 
 /** 데이터 소스 유형 */
 export type ServiceDataSource = 'api' | 'extension' | 'manual';
@@ -20,9 +20,11 @@ export interface Subscription {
   plan_name: string | null;
   login_email: string | null;
   payment_card_last4: string | null;
-  monthly_cost: number;
+  card_nickname: string | null; // 카드 별명 (예: "신한 체크", "토스카드")
+  billing_type: BillingType; // 'recurring' (정기) | 'prepaid' (선불)
+  monthly_cost: number | null; // 선불은 null 가능
   currency: Currency;
-  billing_day: number; // 1-31
+  billing_day: number | null; // 1-31, 선불은 null 가능
   total_credits: number | null;
   remaining_credits: number | null;
   credit_unit: string | null; // 'tokens', 'credits', 'characters', etc.
@@ -40,6 +42,19 @@ export interface CreditLog {
   used_credits: number;
   collected_at: string;
   source: ServiceDataSource;
+}
+
+/** 크레딧 배치별 만료 정보 */
+export interface CreditGrant {
+  id: string;
+  subscription_id: string;
+  grant_id: string | null;
+  grant_amount: number;
+  used_amount: number;
+  remaining_amount: number;
+  expires_at: string | null;
+  effective_at: string | null;
+  collected_at: string;
 }
 
 /** 알림 설정 */

@@ -11,14 +11,21 @@
   ],
   "host_permissions": [
     "https://api.anthropic.com/*",
+    "https://platform.claude.com/*",
+    "https://*.claude.com/*",
     "https://api.openai.com/*",
+    "https://*.openai.com/*",
     "https://api.elevenlabs.io/*",
+    "https://*.elevenlabs.io/*",
     "https://*.suno.com/*",
     "https://suno.com/*",
+    "https://*.suno.ai/*",
+    "https://suno.ai/*",
     "https://*.midjourney.com/*",
     "https://www.midjourney.com/*",
     "https://*.meshy.ai/*",
-    "https://www.meshy.ai/*"
+    "https://www.meshy.ai/*",
+    "https://api.meshy.ai/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -32,6 +39,18 @@
       "128": "icons/icon-128.png"
     }
   },
+  "content_scripts": [
+    {
+      "matches": ["https://platform.openai.com/*"],
+      "js": ["content-openai.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.meshy.ai/*", "https://meshy.ai/*"],
+      "js": ["content-meshy.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "icons": {
     "16": "icons/icon-16.png",
     "48": "icons/icon-48.png",

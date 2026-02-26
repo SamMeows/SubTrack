@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { getDaysUntilBilling, getNextBillingDate, formatCurrency } from '@subtrack/shared';
 import type { Subscription } from '@subtrack/shared';
 import { formatDateKo } from '@/lib/date-utils';
@@ -8,22 +9,23 @@ interface RenewalTimelineProps {
 }
 
 export function RenewalTimeline({ subscriptions }: RenewalTimelineProps) {
-  if (subscriptions.length === 0) {
+  // 정기 결제 + 활성 + billing_day 있는 구독만 표시
+  const sorted = [...subscriptions]
+    .filter((s) => s.is_active && (s.billing_type ?? 'recurring') === 'recurring' && s.billing_day != null)
+    .map((s) => ({
+      ...s,
+      daysUntil: getDaysUntilBilling(s.billing_day)!,
+      nextDate: getNextBillingDate(s.billing_day)!,
+    }))
+    .sort((a, b) => a.daysUntil - b.daysUntil);
+
+  if (sorted.length === 0) {
     return (
       <div className="flex h-24 items-center justify-center text-sm text-gray-500">
-        활성 구독이 없습니다.
+        정기 결제 예정이 없습니다.
       </div>
     );
   }
-
-  const sorted = [...subscriptions]
-    .filter((s) => s.is_active)
-    .map((s) => ({
-      ...s,
-      daysUntil: getDaysUntilBilling(s.billing_day),
-      nextDate: getNextBillingDate(s.billing_day),
-    }))
-    .sort((a, b) => a.daysUntil - b.daysUntil);
 
   return (
     <div className="space-y-3">
@@ -32,9 +34,10 @@ export function RenewalTimeline({ subscriptions }: RenewalTimelineProps) {
         const isUrgent = sub.daysUntil <= 3;
 
         return (
-          <div
+          <Link
             key={sub.id}
-            className="flex items-center justify-between rounded-lg border border-gray-100 bg-white px-4 py-3"
+            href={`/subscriptions/${sub.id}`}
+            className="flex items-center justify-between rounded-lg border border-gray-100 bg-white px-4 py-3 transition-colors hover:bg-gray-50"
           >
             <div className="flex items-center gap-3">
               <span
@@ -54,7 +57,7 @@ export function RenewalTimeline({ subscriptions }: RenewalTimelineProps) {
 
             <div className="text-right">
               <p className="text-sm font-semibold text-gray-900">
-                {formatCurrency(sub.monthly_cost, sub.currency)}
+                {formatCurrency(sub.monthly_cost ?? 0, sub.currency)}
               </p>
               <p
                 className={`text-xs font-medium ${
@@ -64,7 +67,7 @@ export function RenewalTimeline({ subscriptions }: RenewalTimelineProps) {
                 D-{sub.daysUntil}
               </p>
             </div>
-          </div>
+          </Link>
         );
       })}
     </div>

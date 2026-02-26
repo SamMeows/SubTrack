@@ -1,11 +1,21 @@
 import Link from 'next/link';
 import { getSubscriptions } from '@/lib/data/subscriptions';
-import { SubscriptionCard } from '@/components/subscriptions/SubscriptionCard';
+import { getLatestCredits } from '@/lib/data/credit-logs';
+import { SubscriptionTabs } from '@/components/subscriptions/SubscriptionTabs';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 
 export default async function SubscriptionsPage() {
-  const subscriptions = await getSubscriptions();
+  const [subscriptions, latestCredits] = await Promise.all([
+    getSubscriptions(),
+    getLatestCredits(),
+  ]);
+
+  // credit_log 최신값으로 remaining_credits 보강
+  const enriched = subscriptions.map((s) => ({
+    ...s,
+    remaining_credits: latestCredits.get(s.id) ?? s.remaining_credits,
+  }));
 
   return (
     <div>
@@ -16,7 +26,7 @@ export default async function SubscriptionsPage() {
         </Link>
       </div>
 
-      {subscriptions.length === 0 ? (
+      {enriched.length === 0 ? (
         <EmptyState
           title="등록된 서비스가 없습니다"
           description="AI 서비스 구독을 추가하여 관리를 시작하세요."
@@ -27,11 +37,7 @@ export default async function SubscriptionsPage() {
           }
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {subscriptions.map((sub) => (
-            <SubscriptionCard key={sub.id} subscription={sub} />
-          ))}
-        </div>
+        <SubscriptionTabs subscriptions={enriched} />
       )}
     </div>
   );

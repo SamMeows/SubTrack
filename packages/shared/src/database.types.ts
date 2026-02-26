@@ -3,7 +3,7 @@
  * supabase gen types로 자동 생성할 수 있으나 초기에는 수동 정의
  */
 import type { Currency, ServiceDataSource, AlertType, AlertChannel } from './types';
-import type { ServiceName } from './constants';
+import type { ServiceName, BillingType } from './constants';
 
 export interface Database {
   public: {
@@ -16,9 +16,11 @@ export interface Database {
           plan_name: string | null;
           login_email: string | null;
           payment_card_last4: string | null;
-          monthly_cost: number;
+          card_nickname: string | null;
+          billing_type: BillingType;
+          monthly_cost: number | null;
           currency: Currency;
-          billing_day: number;
+          billing_day: number | null;
           total_credits: number | null;
           remaining_credits: number | null;
           credit_unit: string | null;
@@ -34,9 +36,11 @@ export interface Database {
           plan_name?: string | null;
           login_email?: string | null;
           payment_card_last4?: string | null;
-          monthly_cost: number;
+          card_nickname?: string | null;
+          billing_type?: BillingType;
+          monthly_cost?: number | null;
           currency?: Currency;
-          billing_day: number;
+          billing_day?: number | null;
           total_credits?: number | null;
           remaining_credits?: number | null;
           credit_unit?: string | null;
@@ -52,9 +56,11 @@ export interface Database {
           plan_name?: string | null;
           login_email?: string | null;
           payment_card_last4?: string | null;
-          monthly_cost?: number;
+          card_nickname?: string | null;
+          billing_type?: BillingType;
+          monthly_cost?: number | null;
           currency?: Currency;
-          billing_day?: number;
+          billing_day?: number | null;
           total_credits?: number | null;
           remaining_credits?: number | null;
           credit_unit?: string | null;
@@ -101,6 +107,50 @@ export interface Database {
         Relationships: [
           {
             foreignKeyName: 'credit_logs_subscription_id_fkey';
+            columns: ['subscription_id'];
+            isOneToOne: false;
+            referencedRelation: 'subscriptions';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      credit_grants: {
+        Row: {
+          id: string;
+          subscription_id: string;
+          grant_id: string | null;
+          grant_amount: number;
+          used_amount: number;
+          remaining_amount: number;
+          expires_at: string | null;
+          effective_at: string | null;
+          collected_at: string;
+        };
+        Insert: {
+          id?: string;
+          subscription_id: string;
+          grant_id?: string | null;
+          grant_amount: number;
+          used_amount?: number;
+          remaining_amount: number;
+          expires_at?: string | null;
+          effective_at?: string | null;
+          collected_at?: string;
+        };
+        Update: {
+          id?: string;
+          subscription_id?: string;
+          grant_id?: string | null;
+          grant_amount?: number;
+          used_amount?: number;
+          remaining_amount?: number;
+          expires_at?: string | null;
+          effective_at?: string | null;
+          collected_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'credit_grants_subscription_id_fkey';
             columns: ['subscription_id'];
             isOneToOne: false;
             referencedRelation: 'subscriptions';

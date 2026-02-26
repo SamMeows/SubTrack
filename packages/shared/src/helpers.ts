@@ -1,4 +1,5 @@
 import type { Currency } from './types';
+import type { BillingType } from './constants';
 
 /**
  * 크레딧 잔여 비율 계산 (%)
@@ -16,8 +17,11 @@ export function calculateCreditPercentage(
 /**
  * 통화 포맷팅
  * Intl.NumberFormat을 사용하여 로케일에 맞게 표시
+ * amount가 null이면 "-" 반환
  */
-export function formatCurrency(amount: number, currency: Currency): string {
+export function formatCurrency(amount: number | null, currency: Currency): string {
+  if (amount == null) return '-';
+
   const localeMap: Record<Currency, string> = {
     USD: 'en-US',
     KRW: 'ko-KR',
@@ -35,13 +39,15 @@ export function formatCurrency(amount: number, currency: Currency): string {
 /**
  * 다음 결제일 계산
  * billing_day 기준으로 현재 날짜에서 다음 결제일을 반환
- * @param billingDay 결제일 (1-31)
+ * @param billingDay 결제일 (1-31), null이면 null 반환
  * @param referenceDate 기준 날짜 (기본값: 현재)
  */
 export function getNextBillingDate(
-  billingDay: number,
+  billingDay: number | null,
   referenceDate: Date = new Date(),
-): Date {
+): Date | null {
+  if (billingDay == null) return null;
+
   const currentYear = referenceDate.getFullYear();
   const currentMonth = referenceDate.getMonth();
 
@@ -68,12 +74,15 @@ export function getNextBillingDate(
 
 /**
  * 결제일까지 남은 일수 계산
+ * billing_day가 null이면 null 반환
  */
 export function getDaysUntilBilling(
-  billingDay: number,
+  billingDay: number | null,
   referenceDate: Date = new Date(),
-): number {
+): number | null {
+  if (billingDay == null) return null;
   const nextBilling = getNextBillingDate(billingDay, referenceDate);
+  if (!nextBilling) return null;
   const diffMs = nextBilling.getTime() - referenceDate.getTime();
   return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 }
@@ -90,4 +99,25 @@ export function formatCredits(value: number): string {
     return `${(value / 1_000).toFixed(1)}K`;
   }
   return value.toString();
+}
+
+/**
+ * 결제카드 표시 포맷
+ * @returns "신한 체크 •••• 1234" / "신한 체크" / "•••• 1234" / null
+ */
+export function formatCardDisplay(
+  cardLast4: string | null,
+  nickname: string | null,
+): string | null {
+  if (!cardLast4 && !nickname) return null;
+  if (nickname && cardLast4) return `${nickname} •••• ${cardLast4}`;
+  if (nickname) return nickname;
+  return `•••• ${cardLast4}`;
+}
+
+/**
+ * 선불 서비스인지 확인
+ */
+export function isPrepaid(subscription: { billing_type: BillingType }): boolean {
+  return subscription.billing_type === 'prepaid';
 }
