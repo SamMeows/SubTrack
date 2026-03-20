@@ -1,0 +1,11 @@
+{
+  "buildCommand": "npm run build:web",
+  "outputDirectory": "apps/web/.next",
+  "framework": "nextjs",
+  "installCommand": "npm install",
+  "functions": {
+    "apps/web/**/*.ts": {
+      "maxDuration": 30
+    }
+  }
+}

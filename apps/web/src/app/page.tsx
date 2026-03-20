@@ -1,15 +1,6 @@
 import { redirect } from 'next/navigation';
-import { createServerSupabaseClient } from '@/lib/supabase/server';
 
-export default async function Home() {
-  const supabase = createServerSupabaseClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (user) {
-    redirect('/dashboard');
-  } else {
-    redirect('/login');
-  }
+// middleware가 미인증 → /login, 인증 → 통과 처리하므로 바로 redirect
+export default function Home() {
+  redirect('/dashboard');
 }

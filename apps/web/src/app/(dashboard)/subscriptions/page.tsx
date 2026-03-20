@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 
 export default async function SubscriptionsPage() {
-  const [subscriptions, latestCredits] = await Promise.all([
-    getSubscriptions(),
-    getLatestCredits(),
-  ]);
+  const subscriptions = await getSubscriptions();
+  const latestCredits = await getLatestCredits(
+    subscriptions.map((s) => s.id),
+  );
 
   // credit_log 최신값으로 remaining_credits 보강
   const enriched = subscriptions.map((s) => ({

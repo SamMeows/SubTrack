@@ -23,25 +23,34 @@ export async function getCreditLogs(
 }
 
 /**
- * 모든 구독의 최신 credit_log remaining 값을 가져옴
- * subscription.remaining_credits는 stale할 수 있으므로 이 값을 우선 사용
+ * 특정 구독 ID 목록의 최신 credit_log remaining 값을 가져옴
+ * 구독별 최신 1건만 조회하여 전체 테이블 스캔을 방지
  */
-export async function getLatestCredits(): Promise<Map<string, number>> {
+export async function getLatestCredits(
+  subscriptionIds: string[],
+): Promise<Map<string, number>> {
+  if (subscriptionIds.length === 0) return new Map();
+
   const supabase = createServerSupabaseClient();
-  const { data, error } = await supabase
-    .from('credit_logs')
-    .select('subscription_id, remaining_credits, collected_at')
-    .order('collected_at', { ascending: false });
-
-  if (error) throw error;
-
   const map = new Map<string, number>();
-  for (const log of data ?? []) {
-    // 이미 해당 구독의 최신 값이 있으면 스킵 (DESC 정렬이므로 첫 값이 최신)
-    if (!map.has(log.subscription_id)) {
-      map.set(log.subscription_id, log.remaining_credits);
-    }
+
+  // 구독별 최신 credit_log 1건만 조회 (병렬)
+  const results = await Promise.all(
+    subscriptionIds.map((id) =>
+      supabase
+        .from('credit_logs')
+        .select('subscription_id, remaining_credits')
+        .eq('subscription_id', id)
+        .order('collected_at', { ascending: false })
+        .limit(1),
+    ),
+  );
+
+  for (const { data, error } of results) {
+    if (error || !data?.length) continue;
+    map.set(data[0].subscription_id, data[0].remaining_credits);
   }
+
   return map;
 }
 
@@ -59,13 +68,16 @@ export interface CreditSummaryItem {
 export async function getCreditSummary(): Promise<CreditSummaryItem[]> {
   const supabase = createServerSupabaseClient();
 
-  // 구독 정보 + 최신 credit_log 병렬 조회
-  const [subsResult, latestCredits] = await Promise.all([
-    supabase.from('subscriptions').select('*').eq('is_active', true),
-    getLatestCredits(),
-  ]);
+  // 활성 구독 조회 후, 해당 구독들의 최신 credit_log 조회
+  const subsResult = await supabase
+    .from('subscriptions')
+    .select('*')
+    .eq('is_active', true);
 
   if (subsResult.error) throw subsResult.error;
+
+  const subscriptionIds = (subsResult.data ?? []).map((s: any) => s.id as string);
+  const latestCredits = await getLatestCredits(subscriptionIds);
 
   type Row = Pick<
     Subscription,

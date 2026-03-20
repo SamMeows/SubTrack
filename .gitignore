@@ -44,3 +44,4 @@ packages/shared/src/**/*.d.ts.map
 
 # Chrome Extension
 apps/extension/dist/
+.vercel
