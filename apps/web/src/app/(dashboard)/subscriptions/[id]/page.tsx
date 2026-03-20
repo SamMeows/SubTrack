@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { DeleteSubscriptionButton } from '@/components/subscriptions/DeleteSubscriptionButton';
 import { CreditHistoryChart } from '@/components/subscriptions/CreditHistoryChart';
-import { formatCurrency, getDaysUntilBilling, getNextBillingDate, calculateCreditPercentage } from '@subtrack/shared';
+import { formatCurrency, getDaysUntilBilling, getNextBillingDate, calculateCreditPercentage, SERVICE_CONFIGS } from '@subtrack/shared';
+import type { ServiceName } from '@subtrack/shared';
 import { formatDateKo } from '@/lib/date-utils';
 import { getServiceStyle, formatCardDisplay, formatCreditValue, resolveCreditUnit } from '@/lib/service-config';
 
@@ -24,6 +25,7 @@ export default async function SubscriptionDetailPage({
     getCreditGrants(subscription.id),
   ]);
   const config = getServiceStyle(subscription.service_name);
+  const serviceConfig = SERVICE_CONFIGS[subscription.service_name as ServiceName];
   const isPrepaid = subscription.billing_type === 'prepaid';
   const daysUntil = getDaysUntilBilling(subscription.billing_day);
   const nextBilling = getNextBillingDate(subscription.billing_day);
@@ -64,6 +66,17 @@ export default async function SubscriptionDetailPage({
           </Badge>
         </div>
         <div className="flex gap-2">
+          {serviceConfig?.websiteUrl && (
+            <a
+              href={serviceConfig.websiteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button variant="secondary" size="sm">
+                서비스 바로가기 &rarr;
+              </Button>
+            </a>
+          )}
           <Link href={`/subscriptions/${subscription.id}/edit`}>
             <Button variant="secondary" size="sm">
               수정

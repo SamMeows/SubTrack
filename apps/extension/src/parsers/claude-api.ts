@@ -154,7 +154,7 @@ export class ClaudeApiParser implements ServiceParser {
       }
 
       // 4. /invoices 엔드포인트에서 배치별 만료 정보 조회
-      const creditGrants = await this.fetchCreditGrants(orgId, headers);
+      const creditGrants = await this.fetchCreditGrants(orgId, headers, usedCredits);
 
       console.log(
         `[SubTrack] Claude API: collected (grants=${creditGrants.length})`,
@@ -178,10 +178,14 @@ export class ClaudeApiParser implements ServiceParser {
   /**
    * /invoices 엔드포인트에서 크레딧 배치별 만료 정보 추출.
    * type이 "free_credits" 또는 "prepaid_credits"이고 expires_at이 미래인 항목만 반환.
+   *
+   * Claude API는 배치별 사용량을 제공하지 않으므로,
+   * 전체 사용량(totalUsed)을 FIFO(오래된 배치부터) 방식으로 배분.
    */
   private async fetchCreditGrants(
     orgId: string,
     headers: Record<string, string>,
+    totalUsed: number,
   ): Promise<CreditGrant[]> {
     try {
       const res = await fetch(
@@ -201,19 +205,35 @@ export class ClaudeApiParser implements ServiceParser {
 
       const now = Date.now();
       const creditTypes = ['free_credits', 'prepaid_credits'];
+
+      // expires_at 기준 오름차순 정렬 (만료 임박한 배치부터 사용량 차감)
+      const activeInvoices = invoices
+        .filter((inv) => {
+          if (!creditTypes.includes(inv.type)) return false;
+          if (!inv.expires_at) return false;
+          if (new Date(inv.expires_at).getTime() <= now) return false;
+          return true;
+        })
+        .sort((a, b) => {
+          const aTime = a.expires_at ? new Date(a.expires_at).getTime() : Infinity;
+          const bTime = b.expires_at ? new Date(b.expires_at).getTime() : Infinity;
+          return aTime - bTime;
+        });
+
+      // FIFO 방식으로 사용량 배분
+      let remainingUsed = totalUsed;
       const grants: CreditGrant[] = [];
 
-      for (const inv of invoices) {
-        if (!creditTypes.includes(inv.type)) continue;
-        if (!inv.expires_at) continue;
-        if (new Date(inv.expires_at).getTime() <= now) continue;
-
+      for (const inv of activeInvoices) {
         const amountUsd = (inv.amount ?? 0) / 100;
+        const usedFromGrant = Math.min(remainingUsed, amountUsd);
+        remainingUsed = Math.max(0, remainingUsed - amountUsd);
+
         grants.push({
           grantId: `${inv.type}_${inv.effective_at ?? ''}`,
           grantAmount: amountUsd,
-          usedAmount: 0,
-          remainingAmount: amountUsd,
+          usedAmount: usedFromGrant,
+          remainingAmount: Math.max(0, amountUsd - usedFromGrant),
           expiresAt: inv.expires_at,
           effectiveAt: inv.effective_at,
         });
